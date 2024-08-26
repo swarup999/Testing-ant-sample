@@ -1,13 +1,23 @@
 <project name="ant-sample" basedir="." default="build">
 
     <!-- properties -->
-    <property name="src.dir"     value="src"/>
-    <property name="build.dir"   value="build"/>
+    <property name="src.dir" value="src"/>
+    <property name="build.dir" value="build"/>
     <property name="classes.dir" value="${build.dir}/classes"/>
-    <property name="jar.dir"     value="${build.dir}/jar"/>
-    <property name="doc.dir"     value="doc"/>
+    <property name="jar.dir" value="${build.dir}/jar"/>
+    <property name="doc.dir" value="doc"/>
+
+    <!-- Adding properties for SAST integration -->
+    <property name="sast.api.endpoint" value="https://appsecops-api.intruceptlabs.com/api/v1/integrations/performSASTScan"/>
+    <property name="sast.client.id" value="123e4567-e89b-12d3-a456-426614174001"/>
+    <property name="sast.client.secret" value="7a91d1c9-2583-4ef6-8907-7c974f1d6a0e"/>
 
     <!-- targets -->
+    <target name="clean" description="clean up build files">
+        <delete dir="${build.dir}"/>
+        <delete dir="${doc.dir}"/>
+    </target>
+
     <target name="compile" description="compile project">
         <mkdir dir="${classes.dir}"/>
         <javac srcdir="${src.dir}" destdir="${classes.dir}" includeantruntime="false"/>
@@ -22,22 +32,40 @@
         </jar>
     </target>
 
+    <target name="doc" description="generate documentation">
+        <mkdir dir="${doc.dir}"/>
+        <javadoc destdir="${doc.dir}" sourcepath="${src.dir}"/>
+    </target>
+
     <target name="run" depends="jar" description="run application">
         <java jar="${jar.dir}/${ant.project.name}.jar" fork="true"/>
     </target>
 
     <target name="build" depends="jar" description="build application"/>
 
-    <target name="doc" description="generate documentation">
-        <mkdir dir="${doc.dir}" />
-        <javadoc destdir="${doc.dir}" sourcepath="${src.dir}"/>
-    </target>
-
-    <target name="clean" description="clean up build files">
-        <delete dir="${build.dir}"/>
-        <delete dir="${doc.dir}" />
-    </target>
-
     <target name="rebuild" depends="clean,build" description="rebuild application"/>
+
+    <!-- Adding SAST scan target -->
+    <target name="sast" depends="build" description="Perform SAST scan">
+        <echo message="Starting SAST scan..."/>
+        <exec executable="curl">
+            <arg value="-X"/>
+            <arg value="POST"/>
+            <arg value="${sast.api.endpoint}"/>
+            <arg value="-H"/>
+            <arg value="Client-ID: ${sast.client.id}"/>
+            <arg value="-H"/>
+            <arg value="Client-Secret: ${sast.client.secret}"/>
+            <arg value="-F"/>
+            <arg value="projectZipFile=@${jar.dir}/${ant.project.name}.jar"/>
+            <arg value="-F"/>
+            <arg value="applicationId=66c8421b087d6e204357e9f1"/>
+            <arg value="-F"/>
+            <arg value="scanName=New Scan from Ant build"/>
+            <arg value="-F"/>
+            <arg value="language=java"/>
+            <redirector output="sast_response.json"/>
+        </exec>
+    </target>
 
 </project>
